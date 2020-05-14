@@ -40,4 +40,5 @@ Note that installing Visual Studio first, then CUDA+CUDNN is required to get it 
 (https://github.com/AlexeyAB/darknet#how-to-use-yolo-as-dll-and-so-libraries )
 
     + Place pthreadVC2.dll, yolo_cpp_dll.dll in scripts folder.
+    + Place yolov4.weights in scripts/cfg folder (links to download in Darknet repo)
 

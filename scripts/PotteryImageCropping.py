@@ -13,7 +13,7 @@ import os
 import time
 
 
-def yolo_crop(image_path, output_path, pottery_labels,yolo_weight_path, detect_thresh=0.5, min_pixels=256):
+def yolo_crop(image_path, output_path, pottery_labels,yolo_weight_path, detect_thresh=0.5, min_pixels=256, make_square=False, new_dims=None):
     '''
     Function to perform the detection and cropping of images in a given folder.
 
@@ -36,6 +36,12 @@ def yolo_crop(image_path, output_path, pottery_labels,yolo_weight_path, detect_t
 
     min_pixels: int
         The minimum resolution of the output image in X and Y, default 256, helps stop very small images being saved
+
+    make_square: Bool
+        Resize image to make square? If true and new_dims aren't set, resizes to square using smallest dimension of original image. Otherwise makes square with new dimensions.
+
+    new_dims: Tuple
+        New dimensions for image if make_square=True
     '''
 
     # dataframe to store detected object details so this doesn't need to be run again
@@ -95,7 +101,19 @@ def yolo_crop(image_path, output_path, pottery_labels,yolo_weight_path, detect_t
 
                 print(f"X:{xCoord} Y:{yCoord} width:{width} height:{height} border:{border}")
 
-                crop_img = img[yCoord-border:yCoord + height + border, xCoord - border:xCoord + width + border]
+                if make_square:
+
+                    if new_dims == None:
+                        new_dimension = (min(height,width),min(height,width))
+                    else:
+                        new_dimension = new_dims
+
+                    #Crop to box, get the smallest dimension and interpolate to make square with smallest dimension for height and width.
+                    crop_img = img[yCoord-border:yCoord + height + border, xCoord - border:xCoord + width + border]
+                    crop_img = cv2.resize(crop_img, new_dimension, interpolation = cv2.INTER_AREA)
+                else:
+                  crop_img = img[yCoord-border:yCoord + height + border, xCoord - border:xCoord + width + border]
+
                 cropHeight, cropWidth = crop_img.shape[:2]
 
                 #cv2.imshow("cropped", crop_img) #Uncomment to show the cropped images
@@ -135,7 +153,7 @@ if __name__ == "__main__":
     output_path = 'C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\interim\\'
 
     # minimum image resolution to save
-    min_pixels = 256
+    min_pixels = 100
 
     # Yolo related pottery labels
     pottery_labels = ['mug', 'cup', 'vase', 'bowl']
@@ -149,4 +167,6 @@ if __name__ == "__main__":
               pottery_labels,
               yolo_weight_path,
               detect_thresh,
-              min_pixels)
+              min_pixels,
+              make_square=True,
+              new_dims=(150,150))
