@@ -33,3 +33,11 @@ Project Organization
     │
 
 
+## Setup 
+
+* To run image scraping/processing scripts - follow the steps on Alexey B's fork of darknet: https://github.com/AlexeyAB/darknet#how-to-use-yolo-as-dll-and-so-libraries. 
+Note that installing Visual Studio first, then CUDA+CUDNN is required to get it to build with CUDA support. Build darknet.exe, and yolo_cpp_dll.dll. 
+(https://github.com/AlexeyAB/darknet#how-to-use-yolo-as-dll-and-so-libraries )
+
+    + Place pthreadVC2.dll, yolo_cpp_dll.dll in scripts folder.
+

@@ -13,7 +13,7 @@ import os
 import time
 
 
-def yolo_crop(image_path, output_path, pottery_labels, detect_thresh=0.5, min_pixels=256):
+def yolo_crop(image_path, output_path, pottery_labels,yolo_weight_path, detect_thresh=0.5, min_pixels=256):
     '''
     Function to perform the detection and cropping of images in a given folder.
 
@@ -56,7 +56,7 @@ def yolo_crop(image_path, output_path, pottery_labels, detect_thresh=0.5, min_pi
     for image in glob.iglob(image_path):
 
         detected = performDetect(imagePath=image,
-                                weightPath="C:\\Users\\andrewt02\\Documents\\PythonTools\\darknet-master\\yolov4.weights",
+                                weightPath=yolo_weight_path,
                                 showImage=False,
                                 thresh=detect_thresh)
         #loads the image to be cropped
@@ -130,8 +130,9 @@ def yolo_crop(image_path, output_path, pottery_labels, detect_thresh=0.5, min_pi
 if __name__ == "__main__":
 
     #paths to the images to be cropped
-    image_path = "YOUR_PATH_HERE\\data\\raw\\MugImages\\*.jpg"
-    output_path = 'C:YOURPATHHERE\\data\\interim\\CroppedMugImages'
+    yolo_weight_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\scripts\\cfg\\yolov4.weights"
+    image_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\mug\\*.jfif"
+    output_path = 'C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\interim\\'
 
     # minimum image resolution to save
     min_pixels = 256
@@ -146,5 +147,6 @@ if __name__ == "__main__":
     yolo_crop(image_path,
               output_path,
               pottery_labels,
+              yolo_weight_path,
               detect_thresh,
               min_pixels)
