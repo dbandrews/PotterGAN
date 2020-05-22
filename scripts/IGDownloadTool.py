@@ -221,31 +221,11 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
                 post_details = download_details(browser, comment, url, hashtags)
                 total_post_details = total_post_details.append(post_details, ignore_index=True)
 
-        # if any('plate' in ht for ht in hashtags):
-        #     dir_name = 'data/raw/PlateImages'
-        #     download_pic(browser, dir_name, user, suffix)
-        #     post_details = download_details(browser, comment, url, hashtags)
-
-        # if any('vase' in ht for ht in hashtags):
-        #     dir_name = 'data/raw/VaseImages'
-        #     download_pic(browser, dir_name, user, suffix)
-        #     post_details = download_details(browser, comment, url, hashtags)
-
-        # if any('teapot' in ht for ht in hashtags):
-        #     dir_name = 'data/raw/TeapotImages'
-        #     download_pic(browser, dir_name, user, suffix)
-        #     post_details = download_details(browser, comment, url, hashtags)
-
-        # if any('bowl' in ht for ht in hashtags):
-        #     dir_name = 'data/raw/BowlImages'
-        #     download_pic(browser, dir_name, user, suffix)
-        #     post_details = download_details(browser, comment, url, hashtags)
-
             else:
                 post_details = {}
 
-            time.sleep(1)
-            img_counter += 1
+        time.sleep(1)
+        img_counter += 1
 
     browser.close()
 
@@ -257,7 +237,7 @@ if __name__ == "__main__":
 
     #How many posts to TRY and download, will max out, sometimes randomly doesn't get all accessible.
     #May be getting blocked by non authenticated attempts.....
-    num_posts = 10
+    num_posts = 50000
 
     #Specify users to scrape from.
     user_list = ['kinuceramics']
@@ -269,7 +249,7 @@ if __name__ == "__main__":
     output_dir = r"C:\Users\Dustin\Python_Scripts\Generative_Deep_Learning\PotterGAN\PotterGAN\data"
 
     #Term list to restrict what items are saved. Checks hashtag on image before saving
-    term_list = ['cup','mug','plate','bowl', 'ceramicmug']
+    term_list = ['ceramicmug']
 
     #Set path to chromedriver executable
     path_chrome = 'C:/Program Files (x86)/chromedriver_win32/chromedriver.exe'
