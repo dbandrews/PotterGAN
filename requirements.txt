@@ -2,7 +2,9 @@ absl-py==0.7.0
 ai-benchmark==0.1.2
 appnope==0.1.0
 astor==0.7.1
+astroid==2.4.1
 backcall==0.1.0
+beautifulsoup4==4.9.1
 bleach==3.1.4
 certifi==2020.4.5.1
 chardet==3.0.4
@@ -22,6 +24,7 @@ ipykernel==5.1.0
 ipython==7.3.0
 ipython-genutils==0.2.0
 ipywidgets==7.4.2
+isort==4.3.21
 jedi==0.13.2
 Jinja2==2.10
 jsonschema==2.6.0
@@ -34,9 +37,11 @@ Keras-Applications==1.0.8
 keras-contrib @ git+https://www.github.com/keras-team/keras-contrib.git@3fc5ef709e061416f4bc8a92ca3750c824b5d2b0
 Keras-Preprocessing==1.0.9
 kiwisolver==1.0.1
+lazy-object-proxy==1.4.3
 Markdown==3.0.1
 MarkupSafe==1.1.0
 matplotlib==3.0.2
+mccabe==0.6.1
 mistune==0.8.4
 music21==5.5.0
 nbconvert==5.4.1
@@ -60,6 +65,7 @@ ptyprocess==0.6.0
 py-cpuinfo==5.0.0
 pydot==1.4.1
 Pygments==2.3.1
+pylint==2.5.2
 pyparsing==2.3.1
 python-dateutil==2.8.0
 pytz==2018.9
@@ -71,17 +77,21 @@ qtconsole==4.4.3
 requests==2.23.0
 scikit-image==0.14.2
 scipy==1.2.1
+selenium==3.141.0
 Send2Trash==1.5.0
 six==1.12.0
+soupsieve==2.0.1
 tensorboard==1.15.0
 tensorflow-estimator==1.15.1
 tensorflow-gpu==1.15.2
 termcolor==1.1.0
 terminado==0.8.1
 testpath==0.4.2
+toml==0.10.1
 toolz==0.9.0
 tornado==5.1.1
 traitlets==4.3.2
+typed-ast==1.4.1
 urllib3==1.25.9
 wcwidth==0.1.7
 webencodings==0.5.1

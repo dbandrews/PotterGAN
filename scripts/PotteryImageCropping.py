@@ -149,8 +149,8 @@ if __name__ == "__main__":
 
     #paths to the images to be cropped
     yolo_weight_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\scripts\\cfg\\yolov4.weights"
-    image_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\mug\\*.jfif"
-    output_path = 'C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\interim\\'
+    image_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\mug\\*.jpg"
+    output_path = 'C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\output\\'
 
     # minimum image resolution to save
     min_pixels = 100
@@ -169,4 +169,4 @@ if __name__ == "__main__":
               detect_thresh,
               min_pixels,
               make_square=True,
-              new_dims=(150,150))
+              new_dims=(300,300))
