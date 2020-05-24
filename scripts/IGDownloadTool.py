@@ -4,6 +4,7 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 import re
 import os
+import json
 import datetime as dt
 import requests
 from bs4 import BeautifulSoup
@@ -26,6 +27,7 @@ def recent_post_links(chrome_path, username, post_count=10):
     options.add_argument('--headless')
     # options.add_argument('--no-sandbox')
     options.add_argument('--disable-gpu')
+    options.add_argument('--remote-debugging-port=9222')
     browser = Chrome(options=options, executable_path=chrome_path)
     browser.get(url)
     post = 'https://www.instagram.com/p/'
@@ -53,7 +55,7 @@ def recent_post_links(chrome_path, username, post_count=10):
         return post_links[:post_count]
 
 
-def recent_hashtag_links(chrome_path, hashtag_term, post_count=10):
+def recent_hashtag_links(chrome_path, hashtag_term,post_count, output_dir):
     """
         With the input of an account page, scrape the 10 most recent posts urls
         Args:
@@ -70,16 +72,42 @@ def recent_hashtag_links(chrome_path, hashtag_term, post_count=10):
     options.add_argument('--headless')
     # options.add_argument('--no-sandbox')
     options.add_argument('--disable-gpu')
+    options.add_argument('--remote-debugging-port=9222')
     browser = Chrome(options=options, executable_path=chrome_path)
     browser.get(url)
     post = 'https://www.instagram.com/p/'
     post_links = []
+    repeat_count = 0 #If it hangs and doesn't find new links for consecutive loops, break 
+
     while len(post_links) < post_count:
+
+        prior_link_count = len(post_links)
+
         links = [a.get_attribute('href')
                  for a in browser.find_elements_by_tag_name('a')]
+
         for link in links:
             if post in link and link not in post_links:
                 post_links.append(link)
+        
+        #Check if any new links actually got added
+        if prior_link_count == len(links):
+            repeat_count += 1
+
+        #If too many repeats, break
+        if repeat_count > 5:
+            print('............Scraping issue, no new links being added.............')
+            browser.close()
+            return post_links[:post_count]
+
+
+        #Dump log of links found every 100 or so. 12 links at a time are added after initial 33
+        if len(post_links)  % 100 <= 10:
+            write_file = os.path.join(output_dir,'link_log.csv')
+            print("............Link log file written to.........")
+            print(str(write_file))
+            log_file = pd.Series(post_links)
+            log_file.to_csv(write_file, index=False, header=False)
 
         print('\tPost ' + str(len(post_links)) + ' Processed')
         time_elaps = time.time() - start_time
@@ -87,6 +115,7 @@ def recent_hashtag_links(chrome_path, hashtag_term, post_count=10):
             print('Time out on reading in post details, some posts skipped')
             browser.close()
             return post_links[:post_count]
+
         scroll_down = "window.scrollTo(0, document.body.scrollHeight);"
         browser.execute_script(scroll_down)
         time.sleep(3)
@@ -139,9 +168,12 @@ def download_pic(browser, dir_name, user, suffix):
         print('No Image found, likely video only')
 
     image = requests.get(photo_url, stream=True)
+    post_url = browser.current_url
+    #Get last text between forward slashes...
+    post_hash = post_url.split('/')[-2]
 
     with open(
-            '{dirname}/img_{user}_{suffix}.jpg'.format(dirname=dir_name, user=user, suffix=suffix),
+            '{dirname}/{post_hash}.jpg'.format(dirname=dir_name, post_hash=post_hash),
             'wb') as out_file:
         shutil.copyfileobj(image.raw, out_file)
 
@@ -173,7 +205,7 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
     Args:
     urls: a list of urls for Instagram posts
     dir_name: directory to save images into
-    term_list: list of hashtags to restrict what images are saved. Will be used to make subfolders
+    term_list: list of hashtags to restrict what images are saved.
     Returns:
     A list of dictionaries with details for each Instagram post, including link,
     post type, like/view count, age (when posted), and initial comment
@@ -185,6 +217,7 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
     options.add_argument('--headless')
     #options.add_argument('--no-sandbox') #removed to see if it would help chrome windows not closing
     options.add_argument('--disable-gpu')
+    options.add_argument('--remote-debugging-port=9222')
     
     #Setup chromedriver. Loop through urls before checking for each item.
     browser = Chrome(options=options, executable_path=chrome_path)
@@ -192,7 +225,10 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
 
 
     img_counter = 0
+
     for url in urls:
+
+        print('Processing Link: ' + str(img_counter+1) + '/' + str(len(urls)))
         browser.get(url)
 
         try:
@@ -210,14 +246,8 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
         for term in term_list:
 
             if any(term in ht for ht in hashtags):
-                output_dir_name = os.path.join(dir_name,term)
 
-                #Create the directory....
-                if not os.path.exists(output_dir_name):
-                    os.makedirs(output_dir_name)
-
-
-                download_pic(browser, output_dir_name, user, img_counter)
+                download_pic(browser, dir_name, user, img_counter)
                 post_details = download_details(browser, comment, url, hashtags)
                 total_post_details = total_post_details.append(post_details, ignore_index=True)
 
@@ -237,10 +267,10 @@ if __name__ == "__main__":
 
     #How many posts to TRY and download, will max out, sometimes randomly doesn't get all accessible.
     #May be getting blocked by non authenticated attempts.....
-    num_posts = 50000
+    num_posts = 200
 
     #Specify users to scrape from.
-    user_list = ['kinuceramics']
+    # user_list = ['kinuceramics'] 
 
     #or specify a hashtag list
     hashtag_list = ['ceramicmug']
@@ -277,19 +307,39 @@ if __name__ == "__main__":
 
     #--------------------------FOR HASHTAG SCRAPING-----------------------------------
     for ht in hashtag_list:
+        
+        #Create the directory for the hashtag....
+        output_dir_name = os.path.join(output_dir, ht)
+        if not os.path.exists(output_dir_name):
+            os.makedirs(output_dir_name)
 
         #gets just post links
-        recent_posts = recent_hashtag_links(path_chrome,ht, num_posts)
+        recent_posts = recent_hashtag_links(path_chrome,ht, num_posts, output_dir_name)
 
-        #does the actual downloading from the post links
+        #Save links out for reference
+        pd.Series(recent_posts).to_csv(os.path.join(output_dir_name,"link_log.csv"))
+
         details_time = time.time()
+
+        #Get all images already in output dir to avoid re downloading
+        l = os.listdir(output_dir_name)
+        existing_images = ["https://www.instagram.com/p/" + x.split('.')[0] + '/' for x in l]
+        
+        print('Total posts to process: ' + str(len(recent_posts)))
+
+        #Only get images not already in output directory
+        recent_posts = list(set(recent_posts) - set(existing_images))
+
+        print('Posts already existing in folder: ' + str(len(existing_images)))
+        print('New posts to add to folder: ' + str(len(recent_posts)))
+
         #Loop through post links, build details and download each
-        details = insta_link_details(path_chrome,recent_posts, ht, output_dir, term_list )
+        details = insta_link_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
 
         print("Details Processed in: " + str(round(time.time() - details_time)) + "s")
 
         time_stamp = dt.datetime.strftime( dt.datetime.now(), format ="%Y_%M_%d")
         file_name = ht + '_' + str(num_posts) +'_' + time_stamp + '.csv'
-        details.to_csv(os.path.join(output_dir,file_name))
+        details.to_csv(os.path.join(output_dir_name,file_name))
 
         print("All Posts Processed in: " + str(round(time.time() - start_time)) + 'seconds')
