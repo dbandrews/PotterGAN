@@ -148,10 +148,14 @@ def find_hashtags(comment):
         return ""
 
 def write_to_file(output_list, filename):
-    for row in output_list:
-        with open(filename, 'a') as csvfile:
-            fieldnames = output_list.keys()
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+    with open(filename, 'a', encoding='utf8', newline='') as csvfile:
+        fieldnames = ['link', 'type', 'likes',
+                'age', 'comment', 'hashtags',
+                'account_name']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        # writer.writeheader()
+        for row in output_list:
             writer.writerow(row)
 
 
@@ -216,12 +220,11 @@ def download_details(browser, comment, url, hashtags):
 
     return post_details
 
-
-def insta_link_details(chrome_path,urls, user, dir_name, term_list):
+def insta_link_list_details(chrome_path,urls, user, dir_name, term_list):
     """
-    Take a post url and return post details and download image.
+    Take a post url and writes out post details and download images.
     Args:
-    urls: a list of urls for Instagram posts
+    urls: List of urls for Instagram posts
     dir_name: directory to save images into
     term_list: list of hashtags to restrict what images are saved.
     Returns:
@@ -259,38 +262,89 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
             print('No Comment Found or error with comment xpath')
 
         hashtags = find_hashtags(comment)
-        print(hashtags)
+
         # Only downloads pictures of certain items
-        for term in term_list:
 
-            if any(term in ht for ht in hashtags):
-                
-                
-                download_pic(browser, dir_name, user, img_counter)
-                post_details = download_details(browser, comment, url, hashtags)
-                total_post_details = total_post_details.append(post_details)
+        download_pic(browser, dir_name, user, img_counter)
+        post_details = download_details(browser, comment, url, hashtags)
+        # print(post_details)
+        total_post_details.append(post_details)
 
-            else:
-                post_details = {}
+
 
         time.sleep(1)
         img_counter += 1
 
     browser.close()
 
-    print(total_post_details)
+    write_to_file(total_post_details,os.path.join(dir_name,'post_details.csv') )
+
+    # return total_post_details
+
+
+def insta_link_details(chrome_path,url, user, dir_name, term_list):
+    """
+    Take a post url and return post details and download image.
+    Used for multiprocessing one url at a time
+    Args:
+    urls: A url for Instagram post. 
+    dir_name: directory to save images into
+    term_list: list of hashtags to restrict what images are saved.
+    Returns:
+    A list of dictionaries with details for each Instagram post, including link,
+    post type, like/view count, age (when posted), and initial comment
+    Side Effect:
+    Downloads images to folders in a specified directory. 
+    """
+
+    options = Options()
+    options.add_argument('--headless')
+    #options.add_argument('--no-sandbox') #removed to see if it would help chrome windows not closing
+    options.add_argument('--disable-gpu')
+    # options.add_argument('--remote-debugging-port=9222')
+    
+    #Setup chromedriver. Loop through urls before checking for each item.
+    browser = Chrome(options=options, executable_path=chrome_path)
+    total_post_details = []
+
+    browser.get(url)
+
+    try:
+        comment = browser.find_element_by_xpath(
+            """//*[@id="react-root"]/section/main/div/div/
+                article/div[2]/div[1]/ul/div/li/div/div/div[2]/span""").text
+
+    except:
+        comment = "   "
+        print('No Comment Found or error with comment xpath')
+
+    hashtags = find_hashtags(comment)
+
+    # Only downloads pictures of certain items
+
+    download_pic(browser, dir_name, user, 1)
+    post_details = download_details(browser, comment, url, hashtags)
+    # print(post_details)
+    total_post_details.append(post_details)
+
+    time.sleep(1)
+
+    browser.close()
 
     write_to_file(total_post_details,os.path.join(dir_name,'post_details.csv') )
 
     # return total_post_details
 
 
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
 
 if __name__ == "__main__":
 
     #How many posts to TRY and download, will max out, sometimes randomly doesn't get all accessible.
     #May be getting blocked by non authenticated attempts.....
-    num_posts = 20
+    num_posts = 30000
 
     #Specify users to scrape from.
     # user_list = ['kinuceramics'] 
@@ -348,7 +402,7 @@ if __name__ == "__main__":
         l = os.listdir(output_dir_name)
         existing_images = ["https://www.instagram.com/p/" + x.split('.')[0] + '/' for x in l]
         
-        print('Total posts to process: ' + str(len(recent_posts)))
+        print('\n Total posts to process: ' + str(len(recent_posts)))
 
         #Only get images not already in output directory
         recent_posts = list(set(recent_posts) - set(existing_images))
@@ -357,14 +411,17 @@ if __name__ == "__main__":
         print('New posts to add to folder: ' + str(len(recent_posts)))
 
         # #Loop through post links, build details and download each.
+        # Use function on each individual URL for multprocessing for now
         # #Use multiprocessing!
-        # with Pool(cpu_count()-1) as p:
-        #     p.starmap(insta_link_details, zip(repeat(path_chrome), iter(recent_posts), repeat(ht), repeat(output_dir_name), repeat(term_list)))
+        with Pool(cpu_count()-1) as p:
+            p.starmap(insta_link_list_details, 
+            zip(repeat(path_chrome), chunker(recent_posts,30), repeat(ht), repeat(output_dir_name), repeat(term_list)),
+            chunksize=1)
         
-        # p.close()
-        # p.join()
+        p.close()
+        p.join()
 
-        insta_link_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
+        # insta_link_list_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
 
         print("\n Details Processed in: " + str(round(time.time() - details_time)) + "s")
 
