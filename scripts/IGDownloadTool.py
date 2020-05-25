@@ -4,8 +4,11 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 import re
 import os
+import csv
 import json
 import datetime as dt
+from itertools import repeat
+from multiprocessing import Pool, cpu_count
 import requests
 from bs4 import BeautifulSoup
 import shutil
@@ -91,12 +94,12 @@ def recent_hashtag_links(chrome_path, hashtag_term,post_count, output_dir):
                 post_links.append(link)
         
         #Check if any new links actually got added
-        if prior_link_count == len(links):
+        if prior_link_count == len(post_links):
             repeat_count += 1
 
         #If too many repeats, break
         if repeat_count > 5:
-            print('............Scraping issue, no new links being added.............')
+            print('\n............Scraping issue, no new links being added.............')
             browser.close()
             return post_links[:post_count]
 
@@ -104,12 +107,13 @@ def recent_hashtag_links(chrome_path, hashtag_term,post_count, output_dir):
         #Dump log of links found every 100 or so. 12 links at a time are added after initial 33
         if len(post_links)  % 100 <= 10:
             write_file = os.path.join(output_dir,'link_log.csv')
-            print("............Link log file written to.........")
+            print("\n............Link log file written to.........")
             print(str(write_file))
             log_file = pd.Series(post_links)
             log_file.to_csv(write_file, index=False, header=False)
 
-        print('\tPost ' + str(len(post_links)) + ' Processed')
+        print('\r Post ' + str(len(post_links)) + ' Processed', flush=True, end='')
+
         time_elaps = time.time() - start_time
         if time_elaps > (post_count/12*20):
             print('Time out on reading in post details, some posts skipped')
@@ -142,6 +146,13 @@ def find_hashtags(comment):
         return hashtags[0]
     else:
         return ""
+
+def write_to_file(output_list, filename):
+    for row in output_list:
+        with open(filename, 'a') as csvfile:
+            fieldnames = output_list.keys()
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writerow(row)
 
 
 def find_mentions(comment):
@@ -190,12 +201,19 @@ def download_details(browser, comment, url, hashtags):
             """//*[@id="react-root"]/section/main/div/div/
                 article/div[2]/section[2]/div/span""").text.split()[0]
         post_type = 'video'
+
+    #Get account name - for getting follower counts later:
+    account_name = browser.find_element_by_xpath("""//*[@id="react-root"]/section/main/div/
+    div[1]/article/header/div[2]/div[1]/div[1]/a""").text.split()[0]
+
     age = browser.find_element_by_css_selector('a time').text
 
-    mentions = find_mentions(comment)
-    post_details = {'link': url, 'type': post_type, 'likes/views': likes,
+    # mentions = find_mentions(comment)
+
+    post_details = {'link': url, 'type': post_type, 'likes': likes,
                     'age': age, 'comment': comment, 'hashtags': hashtags,
-                    'mentions': mentions}
+                    'account_name': account_name}
+
     return post_details
 
 
@@ -217,18 +235,18 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
     options.add_argument('--headless')
     #options.add_argument('--no-sandbox') #removed to see if it would help chrome windows not closing
     options.add_argument('--disable-gpu')
-    options.add_argument('--remote-debugging-port=9222')
+    # options.add_argument('--remote-debugging-port=9222')
     
     #Setup chromedriver. Loop through urls before checking for each item.
     browser = Chrome(options=options, executable_path=chrome_path)
-    total_post_details = pd.DataFrame()
+    total_post_details = []
 
 
     img_counter = 0
 
     for url in urls:
 
-        print('Processing Link: ' + str(img_counter+1) + '/' + str(len(urls)))
+        print('\r Processing Link: ' + str(img_counter+1) + '/' + str(len(urls)), flush=True, end='')
         browser.get(url)
 
         try:
@@ -241,15 +259,16 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
             print('No Comment Found or error with comment xpath')
 
         hashtags = find_hashtags(comment)
-
+        print(hashtags)
         # Only downloads pictures of certain items
         for term in term_list:
 
             if any(term in ht for ht in hashtags):
-
+                
+                
                 download_pic(browser, dir_name, user, img_counter)
                 post_details = download_details(browser, comment, url, hashtags)
-                total_post_details = total_post_details.append(post_details, ignore_index=True)
+                total_post_details = total_post_details.append(post_details)
 
             else:
                 post_details = {}
@@ -259,7 +278,11 @@ def insta_link_details(chrome_path,urls, user, dir_name, term_list):
 
     browser.close()
 
-    return total_post_details
+    print(total_post_details)
+
+    write_to_file(total_post_details,os.path.join(dir_name,'post_details.csv') )
+
+    # return total_post_details
 
 
 
@@ -267,7 +290,7 @@ if __name__ == "__main__":
 
     #How many posts to TRY and download, will max out, sometimes randomly doesn't get all accessible.
     #May be getting blocked by non authenticated attempts.....
-    num_posts = 200
+    num_posts = 20
 
     #Specify users to scrape from.
     # user_list = ['kinuceramics'] 
@@ -317,7 +340,7 @@ if __name__ == "__main__":
         recent_posts = recent_hashtag_links(path_chrome,ht, num_posts, output_dir_name)
 
         #Save links out for reference
-        pd.Series(recent_posts).to_csv(os.path.join(output_dir_name,"link_log.csv"))
+        pd.Series(recent_posts).to_csv(os.path.join(output_dir_name,"link_log.csv"),index=False, header=False)
 
         details_time = time.time()
 
@@ -333,13 +356,21 @@ if __name__ == "__main__":
         print('Posts already existing in folder: ' + str(len(existing_images)))
         print('New posts to add to folder: ' + str(len(recent_posts)))
 
-        #Loop through post links, build details and download each
-        details = insta_link_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
+        # #Loop through post links, build details and download each.
+        # #Use multiprocessing!
+        # with Pool(cpu_count()-1) as p:
+        #     p.starmap(insta_link_details, zip(repeat(path_chrome), iter(recent_posts), repeat(ht), repeat(output_dir_name), repeat(term_list)))
+        
+        # p.close()
+        # p.join()
 
-        print("Details Processed in: " + str(round(time.time() - details_time)) + "s")
+        insta_link_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
 
-        time_stamp = dt.datetime.strftime( dt.datetime.now(), format ="%Y_%M_%d")
-        file_name = ht + '_' + str(num_posts) +'_' + time_stamp + '.csv'
-        details.to_csv(os.path.join(output_dir_name,file_name))
+        print("\n Details Processed in: " + str(round(time.time() - details_time)) + "s")
 
-        print("All Posts Processed in: " + str(round(time.time() - start_time)) + 'seconds')
+        # time_stamp = dt.datetime.strftime( dt.datetime.now(), format ="%Y_%m_%d")
+        # file_name = ht + '_' + str(num_posts) +'_' + time_stamp + '.csv'
+
+        # details.to_csv(os.path.join(output_dir_name,file_name),index=False)
+
+        print("All Posts Processed in: " + str(round(time.time() - start_time)) + ' seconds')
