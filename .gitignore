@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+#Sensitive stuff
+credentials.py
+
 # C extensions
 *.so
 *.dll

@@ -1,7 +1,16 @@
 import pandas as pd
 import time
+
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
+import requests
+from bs4 import BeautifulSoup
+
 import re
 import os
 import csv
@@ -9,9 +18,9 @@ import json
 import datetime as dt
 from itertools import repeat
 from multiprocessing import Pool, cpu_count
-import requests
-from bs4 import BeautifulSoup
+
 import shutil
+from credentials import creds #Manually enter Instagram login info in a dict with keys: "user","pass". save to credentials.py
 
 
 def recent_post_links(chrome_path, username, post_count=10):
@@ -221,12 +230,39 @@ def download_details(browser, comment, url, hashtags):
 
     return post_details
 
-def insta_user_details(chrome_path, user_urls, dir_name):
+def login_browser(browser,creds):
+    '''
+    Uses a chromedriver object and credentials to login and return the same object for downstream use
+    creds should be a dict with keys: user,pass credentials for logging into Instagram
+    '''
+
+    browser.get("https://www.instagram.com/accounts/login/")
+    time.sleep(10)
+
+    delay = 10
+
+    #Wait till username box loads for pasting
+    # user_box = WebDriverWait(browser, delay).until(EC.presence_of_element_located((By.XPATH, '''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[2]/div/label/input''')))
+    user_box = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[2]/div/label/input''')
+    user_box.send_keys(creds['user'])
+    pass_box = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[3]/div/label/input''')
+    pass_box.send_keys(creds['pass'])
+
+    submit_button = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[4]/button''')
+    submit_button.submit()
+    time.sleep(1)
+
+    return browser
+
+
+
+def insta_user_details(chrome_path, user_urls, dir_name, creds):
     """
     Take user urls and get follower information
     Args:
     urls: List of urls for Instagram posts
     dir_name: directory to save user_log.csv into
+    creds: dict with keys user,pass to log into Instagram
     Returns:
 
     Side Effect:
@@ -234,28 +270,30 @@ def insta_user_details(chrome_path, user_urls, dir_name):
     """
 
     options = Options()
-    options.add_argument('--headless')
+    # options.add_argument('--headless')
     #options.add_argument('--no-sandbox') #removed to see if it would help chrome windows not closing
     options.add_argument('--disable-gpu')
     # options.add_argument('--remote-debugging-port=9222')
     
     #Setup chromedriver. Loop through urls before checking for each item.
     browser = Chrome(options=options, executable_path=chrome_path)
+    browser = login_browser(browser,creds)
+
     total_user_details = []
 
     url_count = 0
     for url in user_urls:
 
-        print('\r Processing Link: ' + str(img_counter+1) + '/' + str(len(urls)), flush=True, end='')
+        print('\r Processing User: ' + str(url_count+1) + '/' + str(len(user_urls)), flush=True, end='')
         browser.get(url)
 
         try:
             followers = browser.find_element_by_xpath(
                 """//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a/span""").text
 
-            following = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/span''').text
+            following = browser.find_element_by_xpath("""//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/span""").text
             
-            profile =  browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/div/header/section/div[2]/span''').text
+            profile =  browser.find_element_by_xpath("""//*[@id="react-root"]/section/main/div/header/section/div[2]/span""").text
         except:
 
             print('No followers found')
@@ -399,44 +437,27 @@ if __name__ == "__main__":
 
     #How many posts to TRY and download, will max out, sometimes randomly doesn't get all accessible.
     #May be getting blocked by non authenticated attempts.....
-    num_posts = 30000
+    num_posts = 100
 
     #Specify users to scrape from.
     # user_list = ['kinuceramics'] 
 
     #or specify a hashtag list
-    hashtag_list =  ['ceramicmug']
+    hashtag_list = ['ceramicbowl']
+    #['ceramicmug','ceramiccup','handmademug']
 
     #Directory to save folders of images into per hashtag. 
     # Also saves link_log.csv of all links collected, and post_details.csv for each hashtag
     output_dir = r"C:\Users\Dustin\Python_Scripts\Generative_Deep_Learning\PotterGAN\PotterGAN\data"
 
     #Term list to restrict what items are saved. Checks hashtag on image before saving
-    term_list = ['ceramicmug']
+    term_list = ['ceramicbowl']
+    #['ceramicmug','ceramiccup','handmademug']
 
     #Set path to chromedriver executable
-    path_chrome = 'C:/Program Files (x86)/chromedriver_win32/chromedriver.exe'
+    chrome_path = 'C:/Program Files (x86)/chromedriver_win32/chromedriver.exe'
 
     start_time = time.time()
-
-    #--------------------------FOR USERS SCRAPING-----------------------------------
-    # for user in user_list:
-
-    #     #gets just post links
-    #     recent_posts = recent_post_links(path_chrome,user, num_posts)
-
-    #     #does the actual downloading from the post links
-    #     details_time = time.time()
-    #     #Loop through post links, build details and download each
-    #     details = insta_link_details(path_chrome,recent_posts, user, output_dir, term_list )
-
-    #     print("Details Processed in: " + str(round(time.time() - details_time)) + "s")
-
-    #     time_stamp = dt.datetime.strftime( dt.datetime.now(), format ="%Y_%M_%d")
-    #     file_name = user + '_' + str(num_posts) +'_' + time_stamp + '.csv'
-    #     details.to_csv(os.path.join(output_dir,file_name))
-
-    #     print("All Posts Processed in: " + str(round(time.time() - start_time)) + 'seconds')
 
     #--------------------------FOR HASHTAG SCRAPING-----------------------------------
     for ht in hashtag_list:
@@ -447,7 +468,7 @@ if __name__ == "__main__":
             os.makedirs(output_dir_name)
 
         #gets just post links
-        recent_posts = recent_hashtag_links(path_chrome,ht, num_posts, output_dir_name)
+        recent_posts = recent_hashtag_links(chrome_path,ht, num_posts, output_dir_name)
 
         #Save links out for reference
         pd.Series(recent_posts).to_csv(os.path.join(output_dir_name,"link_log.csv"),index=False, header=False)
@@ -471,7 +492,7 @@ if __name__ == "__main__":
         # #Use multiprocessing!
         with Pool(cpu_count()-1) as p:
             p.starmap(insta_link_list_details, 
-            zip(repeat(path_chrome), chunker(recent_posts,30), repeat(ht), repeat(output_dir_name), repeat(term_list)),
+            zip(repeat(chrome_path), chunker(recent_posts,30), repeat(ht), repeat(output_dir_name), repeat(term_list)),
             chunksize=1)
         
         p.close()
@@ -480,3 +501,21 @@ if __name__ == "__main__":
         # insta_link_list_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
 
         print("All Posts Processed in: " + str(round(time.time() - start_time)) + ' seconds')
+
+        print("Getting User Info on all Posts ")
+
+        user_details = pd.read_csv(
+            os.path.join(output_dir_name,'post_details.csv'),
+        names=['post_link','media_type','likes','post_age','caption','hashtags','account_name'])
+
+        user_details['user_urls'] = "https://www.instagram.com/" + user_details['account_name'] + "/"
+
+        #Loop through, multiprocessing to get all user info. Followers,following, profile statement saved to a csv
+        with Pool(1) as p:
+            p.starmap(insta_user_details, 
+            zip(repeat(chrome_path), chunker(user_details['user_urls'].values,30), repeat(output_dir_name), repeat(creds)),
+            chunksize=1)
+        
+        p.close()
+        p.join()
+
