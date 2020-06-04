@@ -181,6 +181,7 @@ def download_pic(browser, dir_name, user, suffix):
         photo_url = soup.find("meta", property="og:image")['content']
     except:
         print('No Image found, likely video only')
+        return None
 
     image = requests.get(photo_url, stream=True)
     post_url = browser.current_url
@@ -220,9 +221,62 @@ def download_details(browser, comment, url, hashtags):
 
     return post_details
 
+def insta_user_details(chrome_path, user_urls, dir_name):
+    """
+    Take user urls and get follower information
+    Args:
+    urls: List of urls for Instagram posts
+    dir_name: directory to save user_log.csv into
+    Returns:
+
+    Side Effect:
+    Saves user_log.csv to dir_name folder with followers per username
+    """
+
+    options = Options()
+    options.add_argument('--headless')
+    #options.add_argument('--no-sandbox') #removed to see if it would help chrome windows not closing
+    options.add_argument('--disable-gpu')
+    # options.add_argument('--remote-debugging-port=9222')
+    
+    #Setup chromedriver. Loop through urls before checking for each item.
+    browser = Chrome(options=options, executable_path=chrome_path)
+    total_user_details = []
+
+    url_count = 0
+    for url in user_urls:
+
+        print('\r Processing Link: ' + str(img_counter+1) + '/' + str(len(urls)), flush=True, end='')
+        browser.get(url)
+
+        try:
+            followers = browser.find_element_by_xpath(
+                """//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a/span""").text
+
+            following = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/span''').text
+            
+            profile =  browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/div/header/section/div[2]/span''').text
+        except:
+
+            print('No followers found')
+
+        user_details = {'account_name': url.split('/')[-2],
+            'followers':followers,
+        'following':following,
+        'profile':profile}
+
+        total_user_details.append(user_details)
+
+        url_count += 1
+        time.sleep(1)
+
+    write_to_file(total_user_details,os.path.join(dir_name,'user_details.csv') )
+
+
+
 def insta_link_list_details(chrome_path,urls, user, dir_name, term_list):
     """
-    Take a post url and writes out post details and download images.
+    Take a list of post urls and writes out post details and download images.
     Args:
     urls: List of urls for Instagram posts
     dir_name: directory to save images into
@@ -301,6 +355,7 @@ def insta_link_details(chrome_path,url, user, dir_name, term_list):
     options.add_argument('--headless')
     #options.add_argument('--no-sandbox') #removed to see if it would help chrome windows not closing
     options.add_argument('--disable-gpu')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])#Prevents startup port message
     # options.add_argument('--remote-debugging-port=9222')
     
     #Setup chromedriver. Loop through urls before checking for each item.
@@ -350,9 +405,10 @@ if __name__ == "__main__":
     # user_list = ['kinuceramics'] 
 
     #or specify a hashtag list
-    hashtag_list = ['ceramicmug']
+    hashtag_list =  ['ceramicmug']
 
-    #Directory to save folders of images into
+    #Directory to save folders of images into per hashtag. 
+    # Also saves link_log.csv of all links collected, and post_details.csv for each hashtag
     output_dir = r"C:\Users\Dustin\Python_Scripts\Generative_Deep_Learning\PotterGAN\PotterGAN\data"
 
     #Term list to restrict what items are saved. Checks hashtag on image before saving
@@ -422,12 +478,5 @@ if __name__ == "__main__":
         p.join()
 
         # insta_link_list_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
-
-        print("\n Details Processed in: " + str(round(time.time() - details_time)) + "s")
-
-        # time_stamp = dt.datetime.strftime( dt.datetime.now(), format ="%Y_%m_%d")
-        # file_name = ht + '_' + str(num_posts) +'_' + time_stamp + '.csv'
-
-        # details.to_csv(os.path.join(output_dir_name,file_name),index=False)
 
         print("All Posts Processed in: " + str(round(time.time() - start_time)) + ' seconds')
