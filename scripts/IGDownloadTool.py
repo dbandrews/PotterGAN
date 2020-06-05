@@ -20,7 +20,7 @@ from itertools import repeat
 from multiprocessing import Pool, cpu_count
 
 import shutil
-from credentials import creds #Manually enter Instagram login info in a dict with keys: "user","pass". save to credentials.py
+
 
 
 def recent_post_links(chrome_path, username, post_count=10):
@@ -156,12 +156,12 @@ def find_hashtags(comment):
     else:
         return ""
 
-def write_to_file(output_list, filename):
-
+def write_to_file(output_list, filename, fieldnames):
+    '''
+    Takes in a list of dictionary objects. Writes out a csv with specified field names.
+    Can be used asynchronously as it appends
+    '''
     with open(filename, 'a', encoding='utf8', newline='') as csvfile:
-        fieldnames = ['link', 'type', 'likes',
-                'age', 'comment', 'hashtags',
-                'account_name']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         # writer.writeheader()
         for row in output_list:
@@ -237,22 +237,25 @@ def login_browser(browser,creds):
     '''
 
     browser.get("https://www.instagram.com/accounts/login/")
-    time.sleep(10)
-
-    delay = 10
+    time.sleep(5)
 
     #Wait till username box loads for pasting
+    #  delay = 10
     # user_box = WebDriverWait(browser, delay).until(EC.presence_of_element_located((By.XPATH, '''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[2]/div/label/input''')))
-    user_box = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[2]/div/label/input''')
-    user_box.send_keys(creds['user'])
-    pass_box = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[3]/div/label/input''')
+    user_box = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/div/article/div/div[1]/div/form/div[2]/div/label/input''')
+    user_box.send_keys(creds['user'])  
+    
+    pass_box = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/div/article/div/div[1]/div/form/div[3]/div/label/input''')
     pass_box.send_keys(creds['pass'])
-
-    submit_button = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[4]/button''')
+                                                
+    submit_button = browser.find_element_by_xpath('''//*[@id="react-root"]/section/main/div/article/div/div[1]/div/form/div[4]/button''')
+                                                    #//*[@id="react-root"]/section/main/article/div[2]/div[1]/div/form/div[4]/button
     submit_button.submit()
-    time.sleep(1)
 
+    time.sleep(5)
+                                                                
     return browser
+
 
 
 
@@ -287,16 +290,14 @@ def insta_user_details(chrome_path, user_urls, dir_name, creds):
         print('\r Processing User: ' + str(url_count+1) + '/' + str(len(user_urls)), flush=True, end='')
         browser.get(url)
 
-        try:
-            followers = browser.find_element_by_xpath(
-                """//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a/span""").text
 
-            following = browser.find_element_by_xpath("""//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/span""").text
-            
-            profile =  browser.find_element_by_xpath("""//*[@id="react-root"]/section/main/div/header/section/div[2]/span""").text
-        except:
+        followers = browser.find_element_by_xpath(
+            """//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a/span""").text
 
-            print('No followers found')
+        following = browser.find_element_by_xpath("""//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/span""").text
+        
+        profile =  browser.find_element_by_xpath("""//*[@id="react-root"]/section/main/div/header/section/div[2]/span""").text
+
 
         user_details = {'account_name': url.split('/')[-2],
             'followers':followers,
@@ -306,9 +307,13 @@ def insta_user_details(chrome_path, user_urls, dir_name, creds):
         total_user_details.append(user_details)
 
         url_count += 1
-        time.sleep(1)
+        time.sleep(2)
 
-    write_to_file(total_user_details,os.path.join(dir_name,'user_details.csv') )
+    browser.close()
+
+    write_to_file(total_user_details,
+    os.path.join(dir_name,'user_details.csv'),
+    fieldnames=['account_name','followers','following','profile'] )
 
 
 
@@ -369,7 +374,10 @@ def insta_link_list_details(chrome_path,urls, user, dir_name, term_list):
 
     browser.close()
 
-    write_to_file(total_post_details,os.path.join(dir_name,'post_details.csv') )
+    write_to_file(total_post_details,os.path.join(dir_name,'post_details.csv'),
+    fieldnames = ['link', 'type', 'likes',
+                'age', 'comment', 'hashtags',
+                'account_name'] )
 
     # return total_post_details
 
@@ -424,7 +432,10 @@ def insta_link_details(chrome_path,url, user, dir_name, term_list):
 
     browser.close()
 
-    write_to_file(total_post_details,os.path.join(dir_name,'post_details.csv') )
+    write_to_file(total_post_details,os.path.join(dir_name,'post_details.csv'),
+    fieldnames=['link', 'type', 'likes',
+                'age', 'comment', 'hashtags',
+                'account_name'] )
 
     # return total_post_details
 
@@ -435,6 +446,8 @@ def chunker(seq, size):
 
 if __name__ == "__main__":
 
+    from credentials import creds #Manually enter Instagram login info in a "creds" dict with keys: "user","pass". save to credentials.py
+
     #How many posts to TRY and download, will max out, sometimes randomly doesn't get all accessible.
     #May be getting blocked by non authenticated attempts.....
     num_posts = 100
@@ -443,16 +456,14 @@ if __name__ == "__main__":
     # user_list = ['kinuceramics'] 
 
     #or specify a hashtag list
-    hashtag_list = ['ceramicbowl']
-    #['ceramicmug','ceramiccup','handmademug']
+    hashtag_list = ['ceramicbowl']#['ceramicmug','ceramiccup','handmademug']
 
     #Directory to save folders of images into per hashtag. 
     # Also saves link_log.csv of all links collected, and post_details.csv for each hashtag
     output_dir = r"C:\Users\Dustin\Python_Scripts\Generative_Deep_Learning\PotterGAN\PotterGAN\data"
 
     #Term list to restrict what items are saved. Checks hashtag on image before saving
-    term_list = ['ceramicbowl']
-    #['ceramicmug','ceramiccup','handmademug']
+    term_list = ['ceramicbowl']#['ceramicmug','ceramiccup','handmademug']
 
     #Set path to chromedriver executable
     chrome_path = 'C:/Program Files (x86)/chromedriver_win32/chromedriver.exe'
@@ -467,55 +478,66 @@ if __name__ == "__main__":
         if not os.path.exists(output_dir_name):
             os.makedirs(output_dir_name)
 
-        #gets just post links
-        recent_posts = recent_hashtag_links(chrome_path,ht, num_posts, output_dir_name)
-
-        #Save links out for reference
-        pd.Series(recent_posts).to_csv(os.path.join(output_dir_name,"link_log.csv"),index=False, header=False)
-
-        details_time = time.time()
-
-        #Get all images already in output dir to avoid re downloading
         l = os.listdir(output_dir_name)
-        existing_images = ["https://www.instagram.com/p/" + x.split('.')[0] + '/' for x in l]
-        
-        print('\n Total posts to process: ' + str(len(recent_posts)))
 
-        #Only get images not already in output directory
-        recent_posts = list(set(recent_posts) - set(existing_images))
+        if ('post_details.csv' in l )or ('link_log.csv' in l):
+            print('post_details.csv or link_log.csv already exist in output directory. Skipping...Delete if fresh start required')
+            print('Images can be left in output folder to avoid re downloading')
+        else:
+            #gets just post links
+            recent_posts = recent_hashtag_links(chrome_path,ht, num_posts, output_dir_name)
 
-        print('Posts already existing in folder: ' + str(len(existing_images)))
-        print('New posts to add to folder: ' + str(len(recent_posts)))
+            #Save links out for reference
+            pd.Series(recent_posts).to_csv(os.path.join(output_dir_name,"link_log.csv"),index=False, header=False)
 
-        # #Loop through post links, build details and download each.
-        # Use function on each individual URL for multprocessing for now
-        # #Use multiprocessing!
-        with Pool(cpu_count()-1) as p:
-            p.starmap(insta_link_list_details, 
-            zip(repeat(chrome_path), chunker(recent_posts,30), repeat(ht), repeat(output_dir_name), repeat(term_list)),
-            chunksize=1)
-        
-        p.close()
-        p.join()
+            details_time = time.time()
 
-        # insta_link_list_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
+            #Get all images already in output dir to avoid re downloading
+            l = os.listdir(output_dir_name)
+            existing_images = ["https://www.instagram.com/p/" + x.split('.')[0] + '/' for x in l]
+            
+            print('\n Total posts to process: ' + str(len(recent_posts)))
 
-        print("All Posts Processed in: " + str(round(time.time() - start_time)) + ' seconds')
+            #Only get images not already in output directory
+            recent_posts = list(set(recent_posts) - set(existing_images))
 
-        print("Getting User Info on all Posts ")
+            print('Posts already existing in folder: ' + str(len(existing_images)))
+            print('New posts to add to folder: ' + str(len(recent_posts)))
 
-        user_details = pd.read_csv(
-            os.path.join(output_dir_name,'post_details.csv'),
-        names=['post_link','media_type','likes','post_age','caption','hashtags','account_name'])
+            # #Loop through post links, build details and download each.
+            # Use function on each individual URL for multprocessing for now
+            # #Use multiprocessing!
+            with Pool(cpu_count()-1) as p:
+                p.starmap(insta_link_list_details, 
+                zip(repeat(chrome_path), chunker(recent_posts,30), repeat(ht), repeat(output_dir_name), repeat(term_list)),
+                chunksize=1)
+            
+            p.close()
+            p.join()
 
-        user_details['user_urls'] = "https://www.instagram.com/" + user_details['account_name'] + "/"
+            # insta_link_list_details(path_chrome,recent_posts, ht, output_dir_name, term_list )
 
-        #Loop through, multiprocessing to get all user info. Followers,following, profile statement saved to a csv
-        with Pool(1) as p:
-            p.starmap(insta_user_details, 
-            zip(repeat(chrome_path), chunker(user_details['user_urls'].values,30), repeat(output_dir_name), repeat(creds)),
-            chunksize=1)
-        
-        p.close()
-        p.join()
+            print("All Posts Processed in: " + str(round(time.time() - start_time)) + ' seconds')
 
+
+        if 'user_details.csv' in l:
+            print('User_details.csv already exists in output folder. Skipping....Delete if fresh start required')
+        else:
+            print("Getting User Info on all Posts ")
+
+            user_details = pd.read_csv(
+                os.path.join(output_dir_name,'post_details.csv'),
+            names=['post_link','media_type','likes','post_age','caption','hashtags','account_name'])
+
+            user_details['user_urls'] = "https://www.instagram.com/" + user_details['account_name'] + "/"
+
+            #Loop through, multiprocessing to get all user info. Followers,following, profile statement saved to a csv
+            with Pool(cpu_count()-3) as p:
+                p.starmap(insta_user_details, 
+                zip(repeat(chrome_path), chunker(user_details['user_urls'].values,500), repeat(output_dir_name), repeat(creds)),
+                chunksize=1)
+            p.close()
+            p.join()
+
+        #Single process Attempt:
+        # insta_user_details(chrome_path,user_details['user_urls'].values, output_dir_name, creds)
