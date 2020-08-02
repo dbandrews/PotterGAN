@@ -66,8 +66,12 @@ def yolo_crop(image_path, output_path, pottery_labels,yolo_weight_path, detect_t
                                 showImage=False,
                                 thresh=detect_thresh)
         #loads the image to be cropped
-        img = cv2.imread(image)
-        imgHeight, imgWidth = img.shape[:2]
+        try:
+            img = cv2.imread(image)
+            imgHeight, imgWidth = img.shape[:2]
+        except:
+            print("Error reading file", image)
+            next
 
         #goes over all detected objects and crops then saves the cropped image
         for object in detected:
@@ -149,7 +153,7 @@ if __name__ == "__main__":
 
     #paths to the images to be cropped
     yolo_weight_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\scripts\\cfg\\yolov4.weights"
-    image_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\ceramicmug\\*.jpg"
+    image_path = "C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\aggregate_mug_vase_bowl_data\\*.jpg"
     output_path = 'C:\\Users\\Dustin\\Python_Scripts\\Generative_Deep_Learning\\PotterGAN\\PotterGAN\\\\data\\output\\'
 
     # minimum image resolution to save
@@ -157,10 +161,10 @@ if __name__ == "__main__":
 
     # Yolo related pottery labels
     # ['mug', 'cup', 'vase', 'bowl']
-    pottery_labels = ['cup']
+    pottery_labels = ['mug', 'cup', 'vase', 'bowl']
 
     # detection thresholdfor YOLO,
-    detect_thresh = 0.65
+    detect_thresh = 0.8
 
     #run the cropping
     yolo_crop(image_path,
