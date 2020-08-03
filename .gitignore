@@ -4,6 +4,11 @@ __pycache__/
 
 # No tracking images!
 *.jpg
+*.png
+*.mp4
+
+# Keras weights
+*.h5
 
 #Sensitive stuff
 credentials.py
