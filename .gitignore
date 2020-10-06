@@ -10,6 +10,9 @@ __pycache__/
 # Keras weights
 *.h5
 
+# Pickled objects...
+*.pkl
+
 #Sensitive stuff
 credentials.py
 
