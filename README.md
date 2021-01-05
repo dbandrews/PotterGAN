@@ -1,8 +1,11 @@
 PotterGAN
 ==============================
 
-A GAN for generating novel pottery designs.
+Work to create a GAN for generating novel pottery designs. 
 
+In progress - data collection process mostly complete. Dataset cleanup and GAN architecture fine tuning to be confirmed. First pass using Wasserstein GP GAN architecture produces promising results, but poor fine details in generated images.
+
+<!-- 
 Project Organization
 ------------
 
@@ -20,7 +23,7 @@ Project Organization
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
     │                         generated with `pip freeze > requirements.txt`
     │
-    ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
+    ├─ setup.py           <- makes project pip installable (pip install -e .) so src can be imported
     ├── src                <- Source code for use in this project.
     │   ├── __init__.py    <- Makes src a Python module
     │   │
@@ -31,6 +34,7 @@ Project Organization
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
     │       └── visualize.py
     │
+-->
 
 
 ## Setup 
